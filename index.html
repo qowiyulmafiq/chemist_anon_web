@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chemistry Voice Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+	<link rel="stylesheet" href="style.css">
+	
+</head>
+<body>
+    <header>Chemistry Voice Hub</header>
+    <nav>
+        <button class="nav-btn active" onclick="showTab('home')"><i class="fas fa-home"></i> Beranda</button>
+        <button class="nav-btn" onclick="showTab('send')"><i class="fas fa-paper-plane"></i> Kirim Note</button>
+        <button class="nav-btn" onclick="showTab('history')"><i class="fas fa-history"></i> History</button>
+        <button class="nav-btn" onclick="showTab('admin')"><i class="fas fa-user-shield"></i> Admin</button>
+    </nav>
+    
+    <div class="container">
+        <div id="home" class="tab-content active">
+            <div class="tab-header">
+                <h2 class="section-title"><i class="fas fa-check-circle"></i> Notes Disetujui</h2>
+                <div class="search-box">
+                    <input type="text" class="form-control" placeholder="Cari notes..." id="search-notes">
+                    <button class="btn" onclick="searchNotes()"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+            <div id="approved-notes" class="grid"></div>
+        </div>
+        
+        <div id="send" class="tab-content">
+            <h2 class="section-title"><i class="fas fa-edit"></i> Kirim Note Anonim</h2>
+            <div class="alert alert-success" id="success-alert">Note berhasil dikirim! Menunggu moderasi admin.</div>
+            <form id="note-form">
+                <div class="form-group">
+                    <textarea class="form-control" placeholder="Tulis note Anda di sini..." maxlength="500" required id="note-text"></textarea>
+                    <div class="char-count"><span id="char-count">0</span>/500 karakter</div>
+                </div>
+                <button type="submit" class="btn"><i class="fas fa-paper-plane"></i> Kirim Note</button>
+            </form>
+            <div class="loading" id="loading-send">
+                <div class="spinner"></div>
+                <p>Mengirim note...</p>
+            </div>
+        </div>
+        
+        <div id="history" class="tab-content">
+            <h2 class="section-title"><i class="fas fa-images"></i> Gallery Dokumentasi</h2>
+            <div id="public-gallery" class="grid"></div>
+            
+            <!-- PANEL UPLOAD FOTO HANYA UNTUK ADMIN -->
+            <div class="admin-only" id="upload-panel">
+                <h2 class="section-title"><i class="fas fa-upload"></i> Upload Foto (Admin Only)</h2>
+                <form id="upload-form">
+                    <div class="form-group">
+                        <input type="file" class="form-control" accept="image/*" required id="image-upload">
+                        <div class="file-info" id="file-info">Maksimal 5MB</div>
+                    </div>
+                    <div class="form-group">
+                        <textarea class="form-control" placeholder="Deskripsi foto..." required id="image-desc"></textarea>
+                    </div>
+                    <button type="submit" class="btn"><i class="fas fa-upload"></i> Upload Foto</button>
+                </form>
+            </div>
+        </div>
+        
+        <div id="admin" class="tab-content">
+            <h2 class="section-title"><i class="fas fa-user-cog"></i> Panel Admin</h2>
+            
+            <div id="admin-login">
+                <div class="admin-panel">
+                    <h3><i class="fas fa-lock"></i> Masuk Sebagai Admin</h3>
+                    <div class="form-group">
+                        <input type="password" class="form-control" placeholder="Masukkan password admin" id="admin-password">
+                    </div>
+                    <button class="btn" onclick="checkAdmin()"><i class="fas fa-sign-in-alt"></i> Masuk</button>
+                </div>
+            </div>
+            
+            <div id="admin-panel" style="display: none;">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-notes">0</div>
+                        <div class="stat-label">Total Notes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="pending-notes-count">0</div>
+                        <div class="stat-label">Menunggu Moderasi</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-images">0</div>
+                        <div class="stat-label">Total Foto</div>
+                    </div>
+                </div>
+                
+                <div class="admin-panel">
+                    <h3><i class="fas fa-tasks"></i> Moderasi Notes</h3>
+                    <div id="pending-notes" class="grid"></div>
+                </div>
+                
+                <div class="admin-panel">
+                    <h3><i class="fas fa-trash-alt"></i> Kelola Notes Disetujui</h3>
+                    <div id="approved-notes-admin" class="grid"></div>
+                </div>
+
+                <!-- Panel Kelola Foto -->
+                <div class="admin-panel">
+                    <h3><i class="fas fa-images"></i> Kelola Gallery Foto</h3>
+                    <div id="gallery-admin" class="grid"></div>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="logoutAdmin()"><i class="fas fa-sign-out-alt"></i> Logout Admin</button>
+            </div>
+        </div>
+    </div>
+
+	<script type="module">
+		// Import the functions you need from the SDKs you need
+		import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+		import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
+		// TODO: Add SDKs for Firebase products that you want to use
+		// https://firebase.google.com/docs/web/setup#available-libraries
+
+		// Your web app's Firebase configuration
+		// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+		const firebaseConfig = {
+			apiKey: "AIzaSyA8cQId-Wnwuo56efQuwSeQGxZEY5-YqbE",
+			authDomain: "chemistry-voice-hub.firebaseapp.com",
+			projectId: "chemistry-voice-hub",
+			storageBucket: "chemistry-voice-hub.firebasestorage.app",
+			messagingSenderId: "132800280681",
+			appId: "1:132800280681:web:6a3b02f5fb540f93498af8",
+			measurementId: "G-Z006B6ZWG4"
+		};
+
+		// Initialize Firebase
+		const app = initializeApp(firebaseConfig);
+		const analytics = getAnalytics(app);
+	</script>
+
+	<script type="module" src="script.js"></script>
+</body>
+</html>
