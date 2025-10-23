@@ -17,6 +17,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// Generate anonymous user ID and store it locally
+let userId = localStorage.getItem("userId");
+if (!userId) {
+    userId = "user_" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("userId", userId);
+}
+console.log("Current Anonymous User ID:", userId);
+
 // Data variables
 let approvedNotes = [];
 let pendingNotes = [];
@@ -175,97 +183,100 @@ async function deleteApprovedNote(noteId) {
     }
 }
 
-// Toggle like for note
+// Toggle Like
 async function toggleLike(noteId, type) {
     const btn = event.target.closest('button');
     btn.classList.add('debounce-active');
-    
+
     try {
         const collectionName = type === 'note' ? 'approvedNotes' : 'gallery';
         const list = type === 'note' ? approvedNotes : gallery;
         const item = list.find(i => i.id === noteId);
-        
+
         if (!item) return;
-        
-        let newLikes = item.likes || 0;
-        let newDislikes = item.dislikes || 0;
-        let newUserAction = item.userAction;
-        
-        if (newUserAction === 'like') {
-            newLikes--;
-            newUserAction = null;
-        } else {
-            if (newUserAction === 'dislike') newDislikes--;
-            newLikes++;
-            newUserAction = 'like';
-        }
-        
-        // Update Firestore
+
         const itemRef = doc(db, collectionName, noteId);
-        await updateDoc(itemRef, {
-            likes: newLikes,
-            dislikes: newDislikes,
-            userAction: newUserAction
-        });
-        
-        // Update local data
-        item.likes = newLikes;
-        item.dislikes = newDislikes;
-        item.userAction = newUserAction;
-        
-        if (type === 'note') renderApprovedNotes();
-        else renderGallery();
+        const liked = item.likedBy || [];
+        const disliked = item.dislikedBy || [];
+
+        // Cek apakah user sudah like
+        const hasLiked = liked.includes(userId);
+        const hasDisliked = disliked.includes(userId);
+
+        if (hasLiked) {
+            // Jika sudah like → batalkan
+            await updateDoc(itemRef, {
+                likes: (item.likes || 0) - 1,
+                likedBy: liked.filter(id => id !== userId)
+            });
+        } else {
+            // Jika belum like
+            if (hasDisliked) {
+                // Hapus dari disliked
+                await updateDoc(itemRef, {
+                    dislikes: (item.dislikes || 0) - 1,
+                    dislikedBy: disliked.filter(id => id !== userId)
+                });
+            }
+            await updateDoc(itemRef, {
+                likes: (item.likes || 0) + 1,
+                likedBy: [...liked, userId]
+            });
+        }
+
+        await loadApprovedNotes();
+        await loadGallery();
     } catch (error) {
-        console.error('Error toggling like:', error);
+        console.error("Error toggling like:", error);
     }
-    
+
     setTimeout(() => btn.classList.remove('debounce-active'), 500);
 }
 
-// Toggle dislike
+// Toggle Dislike
 async function toggleDislike(noteId, type) {
     const btn = event.target.closest('button');
     btn.classList.add('debounce-active');
-    
+
     try {
         const collectionName = type === 'note' ? 'approvedNotes' : 'gallery';
         const list = type === 'note' ? approvedNotes : gallery;
         const item = list.find(i => i.id === noteId);
-        
+
         if (!item) return;
-        
-        let newLikes = item.likes || 0;
-        let newDislikes = item.dislikes || 0;
-        let newUserAction = item.userAction;
-        
-        if (newUserAction === 'dislike') {
-            newDislikes--;
-            newUserAction = null;
-        } else {
-            if (newUserAction === 'like') newLikes--;
-            newDislikes++;
-            newUserAction = 'dislike';
-        }
-        
-        // Update Firestore
+
         const itemRef = doc(db, collectionName, noteId);
-        await updateDoc(itemRef, {
-            likes: newLikes,
-            dislikes: newDislikes,
-            userAction: newUserAction
-        });
-        
-        // Update local data
-        item.likes = newLikes;
-        item.dislikes = newDislikes;
-        item.userAction = newUserAction;
-        
-        if (type === 'note') renderApprovedNotes();
-        else renderGallery();
+        const liked = item.likedBy || [];
+        const disliked = item.dislikedBy || [];
+
+        const hasLiked = liked.includes(userId);
+        const hasDisliked = disliked.includes(userId);
+
+        if (hasDisliked) {
+            // Jika sudah dislike → batalkan
+            await updateDoc(itemRef, {
+                dislikes: (item.dislikes || 0) - 1,
+                dislikedBy: disliked.filter(id => id !== userId)
+            });
+        } else {
+            if (hasLiked) {
+                await updateDoc(itemRef, {
+                    likes: (item.likes || 0) - 1,
+                    likedBy: liked.filter(id => id !== userId)
+                });
+            }
+            await updateDoc(itemRef, {
+                dislikes: (item.dislikes || 0) + 1,
+                dislikedBy: [...disliked, userId]
+            });
+        }
+
+        await loadApprovedNotes();
+        await loadGallery();
     } catch (error) {
-        console.error('Error toggling dislike:', error);
+        console.error("Error toggling dislike:", error);
     }
-    
+
     setTimeout(() => btn.classList.remove('debounce-active'), 500);
 }
 
@@ -681,4 +692,5 @@ window.logoutAdmin = logoutAdmin;
 window.approveNote = approveNote;
 window.rejectNote = rejectNote;
 window.deleteApprovedNote = deleteApprovedNote;
+
 window.deleteGalleryItem = deleteGalleryItem;
