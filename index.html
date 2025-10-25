@@ -114,7 +114,7 @@
             </div>
         </div>
     </div>
-
+	
 	<script type="module">
 		// Import the functions you need from the SDKs you need
 		import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
@@ -124,21 +124,17 @@
 
 		// Your web app's Firebase configuration
 		// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+		//add your personal firebaseConfig
 		const firebaseConfig = {
-			apiKey: "AIzaSyA8cQId-Wnwuo56efQuwSeQGxZEY5-YqbE",
-			authDomain: "chemistry-voice-hub.firebaseapp.com",
-			projectId: "chemistry-voice-hub",
-			storageBucket: "chemistry-voice-hub.firebasestorage.app",
-			messagingSenderId: "132800280681",
-			appId: "1:132800280681:web:6a3b02f5fb540f93498af8",
-			measurementId: "G-Z006B6ZWG4"
+
 		};
 
 		// Initialize Firebase
 		const app = initializeApp(firebaseConfig);
 		const analytics = getAnalytics(app);
 	</script>
-
-	<script type="module" src="script.js"></script>
+	<!--add type="module" if you want to integrate with firebase -->
+	<script src="script.js"></script>
 </body>
+
 </html>
