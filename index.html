@@ -68,17 +68,23 @@
         <div id="admin" class="tab-content">
             <h2 class="section-title"><i class="fas fa-user-cog"></i> Panel Admin</h2>
             
-            <div id="admin-login">
-                <div class="admin-panel">
-                    <h3><i class="fas fa-lock"></i> Masuk Sebagai Admin</h3>
-                    <div class="form-group">
-                        <input type="password" class="form-control" placeholder="Masukkan password admin" id="admin-password">
-                    </div>
-                    <button class="btn" onclick="checkAdmin()"><i class="fas fa-sign-in-alt"></i> Masuk</button>
-                </div>
-            </div>
+		<div id="admin-login">
+		    <div class="admin-panel">
+		        <h3><i class="fas fa-lock"></i> Masuk Sebagai Admin</h3>
+		        <div class="form-group">
+		            <input type="email" class="form-control" placeholder="Email admin" id="admin-email" required>
+		        </div>
+		        <div class="form-group">
+		            <input type="password" class="form-control" placeholder="Password admin" id="admin-password" required>
+		        </div>
+		        <button class="btn" onclick="checkAdmin()"><i class="fas fa-sign-in-alt"></i> Masuk</button>
+		    </div>
+		</div>
             
             <div id="admin-panel" style="display: none;">
+			    <div class="admin-info" style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+			        <p style="margin: 0;">Logged in as: <strong id="admin-email-display"></strong></p>
+			    </div>
                 <div class="stats">
                     <div class="stat-card">
                         <div class="stat-number" id="total-notes">0</div>
@@ -114,9 +120,8 @@
             </div>
         </div>
     </div>
-	<!--add type="module" if you want to integrate with firebase -->
-	<script src="script.js"></script>
+	
+	<!-- tambahkan <type="module">  -->
+	<script type="module" src="script.js"></script>
 </body>
-
 </html>
-
