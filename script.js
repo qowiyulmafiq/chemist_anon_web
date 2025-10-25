@@ -1,21 +1,25 @@
 // Import Firebase modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 
-// Firebase configuration
+// Firebase configuration (buka command dan tambahkan konfigurasi sesuai firebase kamu
+/** 
 const firebaseConfig = {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: "",
-    measurementId: ""
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: "",
+  measurementId: ""
 };
+*/
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 // Generate anonymous user ID and store it locally
 let userId = localStorage.getItem("userId");
@@ -29,7 +33,7 @@ console.log("Current Anonymous User ID:", userId);
 let approvedNotes = [];
 let pendingNotes = [];
 let gallery = [];
-let isAdminLoggedIn = sessionStorage.getItem('adminLoggedIn') === 'true';
+let isAdminLoggedIn = false;
 
 // Search functionality
 let searchTimeout;
@@ -395,7 +399,7 @@ function renderGallery() {
     
     container.innerHTML = gallery.map(item => `
         <div class="gallery-item">
-            <img src="${item.src}" alt="Dokumentasi">
+            <img src="${item.src}" alt="Dokumentasi" onclick="window.openLightbox('${item.id}')" style="cursor: pointer;">
             <div class="gallery-caption">
                 <p>${item.desc}</p>
                 <div class="interaction-bar">
@@ -427,7 +431,7 @@ function renderGalleryAdmin() {
     
     container.innerHTML = gallery.map(item => `
         <div class="gallery-item">
-            <img src="${item.src}" alt="Dokumentasi">
+            <img src="${item.src}" alt="Dokumentasi" onclick="window.openLightbox('${item.id}')" style="cursor: pointer;">
             <div class="gallery-caption">
                 <p>${item.desc} <span class="admin-badge">Admin</span></p>
                 <div class="interaction-bar">
@@ -531,15 +535,52 @@ function updateStats() {
     document.getElementById('total-images').textContent = gallery.length;
 }
 
-function checkAdmin() {
+// Listen to auth state changes
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        isAdminLoggedIn = true;
+        showAdminFeatures();
+        console.log('Admin logged in:', user.email);
+    } else {
+        isAdminLoggedIn = false;
+        hideAdminFeatures();
+        console.log('Admin logged out');
+    }
+});
+
+async function checkAdmin() {
+    const email = document.getElementById('admin-email').value.trim();
     const password = document.getElementById('admin-password').value;
     
-    if (password === 'Ketupel 2 periode') {
-        isAdminLoggedIn = true;
-        sessionStorage.setItem('adminLoggedIn', 'true');
-        showAdminFeatures();
-    } else {
-        alert('Password admin salah!');
+    if (!email || !password) {
+        alert('Email dan password harus diisi!');
+        return;
+    }
+    
+    const loginBtn = event.target;
+    const originalText = loginBtn.innerHTML;
+    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Login...';
+    loginBtn.disabled = true;
+    
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        console.error('Login error:', error);
+        let errorMessage = 'Login gagal!';
+        
+        if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Format email tidak valid!';
+        } else if (error.code === 'auth/user-not-found') {
+            errorMessage = 'Email tidak terdaftar!';
+        } else if (error.code === 'auth/wrong-password') {
+            errorMessage = 'Password salah!';
+        } else if (error.code === 'auth/invalid-credential') {
+            errorMessage = 'Email atau password salah!';
+        }
+        
+        alert(errorMessage);
+        loginBtn.innerHTML = originalText;
+        loginBtn.disabled = false;
     }
 }
 
@@ -547,6 +588,12 @@ function showAdminFeatures() {
     document.getElementById('admin-login').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'block';
     document.getElementById('upload-panel').style.display = 'block';
+    
+    const userEmail = auth.currentUser ? auth.currentUser.email : '';
+    const emailDisplay = document.getElementById('admin-email-display');
+    if (emailDisplay) {
+        emailDisplay.textContent = userEmail;
+    }
     
     updateStats();
     renderPendingNotes();
@@ -560,11 +607,13 @@ function hideAdminFeatures() {
     document.getElementById('upload-panel').style.display = 'none';
 }
 
-function logoutAdmin() {
-    isAdminLoggedIn = false;
-    sessionStorage.removeItem('adminLoggedIn');
-    hideAdminFeatures();
-    document.getElementById('admin-password').value = '';
+async function logoutAdmin() {
+    try {
+        await signOut(auth);
+    } catch (error) {
+        console.error('Logout error:', error);
+        alert('Gagal logout!');
+    }
 }
 
 // Event Listeners
@@ -692,6 +741,97 @@ window.logoutAdmin = logoutAdmin;
 window.approveNote = approveNote;
 window.rejectNote = rejectNote;
 window.deleteApprovedNote = deleteApprovedNote;
-
 window.deleteGalleryItem = deleteGalleryItem;
+
+// Lightbox functions
+window.openLightbox = function(imageId) {
+    const item = gallery.find(i => i.id === imageId);
+    if (!item) return;
+    
+    // Create lightbox
+    const lightbox = document.createElement('div');
+    lightbox.id = 'lightbox';
+    lightbox.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        padding: 20px;
+        box-sizing: border-box;
+    `;
+    
+    lightbox.innerHTML = `
+        <button onclick="window.closeLightbox()" style="
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 32px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
+            <i class="fas fa-times"></i>
+        </button>
+        <img src="${item.src}" alt="Dokumentasi" style="
+            max-width: 90%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        ">
+        <div style="
+            color: white;
+            margin-top: 20px;
+            text-align: center;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 25px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        ">
+            <p style="margin: 0; font-size: 16px;">${item.desc}</p>
+        </div>
+    `;
+    
+    // Close on click outside
+    lightbox.addEventListener('click', function(e) {
+        if (e.target === lightbox) {
+            window.closeLightbox();
+        }
+    });
+    
+    // Close on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.closeLightbox();
+        }
+    });
+    
+    document.body.appendChild(lightbox);
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeLightbox = function() {
+    const lightbox = document.getElementById('lightbox');
+    if (lightbox) {
+        lightbox.remove();
+        document.body.style.overflow = 'auto';
+    }
+};
+
 
